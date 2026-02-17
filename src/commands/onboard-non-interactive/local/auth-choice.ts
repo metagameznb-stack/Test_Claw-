@@ -55,6 +55,11 @@ import {
 import { applyOpenAIConfig } from "../../openai-model-default.js";
 import { resolveNonInteractiveApiKey } from "../api-keys.js";
 
+const OLLAMA_LOCAL_BASE_URL = "http://127.0.0.1:11434/v1";
+const OLLAMA_LOCAL_DEFAULT_MODEL = "llama3.3";
+const LM_STUDIO_LOCAL_BASE_URL = "http://127.0.0.1:1234/v1";
+const LM_STUDIO_LOCAL_DEFAULT_MODEL = "local-model";
+
 export async function applyNonInteractiveAuthChoice(params: {
   nextConfig: OpenClawConfig;
   authChoice: AuthChoice;
@@ -654,6 +659,51 @@ export async function applyNonInteractiveAuthChoice(params: {
       }
       const reason = err instanceof Error ? err.message : String(err);
       runtime.error(`Invalid custom provider config: ${reason}`);
+      runtime.exit(1);
+      return null;
+    }
+  }
+
+  if (authChoice === "ollama-local" || authChoice === "lm-studio-local") {
+    const isOllama = authChoice === "ollama-local";
+    try {
+      const baseUrl =
+        opts.customBaseUrl?.trim() || (isOllama ? OLLAMA_LOCAL_BASE_URL : LM_STUDIO_LOCAL_BASE_URL);
+      const modelId =
+        opts.customModelId?.trim() ||
+        (isOllama ? OLLAMA_LOCAL_DEFAULT_MODEL : LM_STUDIO_LOCAL_DEFAULT_MODEL);
+      const providerId = opts.customProviderId?.trim() || (isOllama ? "ollama" : "lmstudio");
+
+      const resolvedCustomApiKey = await resolveNonInteractiveApiKey({
+        provider: providerId,
+        cfg: baseConfig,
+        flagValue: opts.customApiKey,
+        flagName: "--custom-api-key",
+        envVar: "CUSTOM_API_KEY",
+        envVarName: "CUSTOM_API_KEY",
+        runtime,
+        required: false,
+      });
+
+      const result = applyCustomApiConfig({
+        config: nextConfig,
+        baseUrl,
+        modelId,
+        compatibility: "openai",
+        apiKey: resolvedCustomApiKey?.key,
+        providerId,
+        alias: isOllama ? "ollama" : "lmstudio",
+      });
+
+      return result.config;
+    } catch (err) {
+      if (err instanceof CustomApiError) {
+        runtime.error(`Invalid local provider config: ${err.message}`);
+        runtime.exit(1);
+        return null;
+      }
+      const reason = err instanceof Error ? err.message : String(err);
+      runtime.error(`Invalid local provider config: ${reason}`);
       runtime.exit(1);
       return null;
     }

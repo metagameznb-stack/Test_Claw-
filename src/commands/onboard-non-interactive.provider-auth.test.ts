@@ -497,6 +497,72 @@ describe("onboard (non-interactive): provider auth", () => {
     );
   }, 60_000);
 
+  it("configures Ollama local auth choice defaults", async () => {
+    await withOnboardEnv("openclaw-onboard-ollama-local-", async ({ configPath, runtime }) => {
+      await runNonInteractive(
+        {
+          nonInteractive: true,
+          authChoice: "ollama-local",
+          skipHealth: true,
+          skipChannels: true,
+          skipSkills: true,
+          json: true,
+        },
+        runtime,
+      );
+
+      const cfg = await readJsonFile<{
+        models?: {
+          providers?: Record<
+            string,
+            { baseUrl?: string; api?: string; models?: Array<{ id?: string }> }
+          >;
+        };
+        agents?: { defaults?: { model?: { primary?: string } } };
+      }>(configPath);
+
+      expect(cfg.models?.providers?.ollama?.baseUrl).toBe("http://127.0.0.1:11434/v1");
+      expect(cfg.models?.providers?.ollama?.api).toBe("openai-completions");
+      expect(cfg.models?.providers?.ollama?.models?.some((model) => model.id === "llama3.3")).toBe(
+        true,
+      );
+      expect(cfg.agents?.defaults?.model?.primary).toBe("ollama/llama3.3");
+    });
+  }, 60_000);
+
+  it("configures LM Studio local auth choice defaults", async () => {
+    await withOnboardEnv("openclaw-onboard-lmstudio-local-", async ({ configPath, runtime }) => {
+      await runNonInteractive(
+        {
+          nonInteractive: true,
+          authChoice: "lm-studio-local",
+          skipHealth: true,
+          skipChannels: true,
+          skipSkills: true,
+          json: true,
+        },
+        runtime,
+      );
+
+      const cfg = await readJsonFile<{
+        models?: {
+          providers?: Record<
+            string,
+            { baseUrl?: string; api?: string; models?: Array<{ id?: string }> }
+          >;
+        };
+        agents?: { defaults?: { model?: { primary?: string } } };
+      }>(configPath);
+
+      expect(cfg.models?.providers?.lmstudio?.baseUrl).toBe("http://127.0.0.1:1234/v1");
+      expect(cfg.models?.providers?.lmstudio?.api).toBe("openai-completions");
+      expect(
+        cfg.models?.providers?.lmstudio?.models?.some((model) => model.id === "local-model"),
+      ).toBe(true);
+      expect(cfg.agents?.defaults?.model?.primary).toBe("lmstudio/local-model");
+    });
+  }, 60_000);
+
   it("fails custom provider auth when compatibility is invalid", async () => {
     await withOnboardEnv(
       "openclaw-onboard-custom-provider-invalid-compat-",

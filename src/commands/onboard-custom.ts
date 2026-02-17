@@ -488,26 +488,38 @@ export async function promptCustomApiConfig(params: {
   prompter: WizardPrompter;
   runtime: RuntimeEnv;
   config: OpenClawConfig;
+  initialBaseUrl?: string;
+  initialModelId?: string;
+  initialProviderId?: string;
+  initialAlias?: string;
+  compatibilityChoice?: CustomApiCompatibilityChoice;
+  skipCompatibilityPrompt?: boolean;
 }): Promise<CustomApiResult> {
   const { prompter, runtime, config } = params;
 
-  const baseInput = await promptBaseUrlAndKey({ prompter });
+  const baseInput = await promptBaseUrlAndKey({
+    prompter,
+    initialBaseUrl: params.initialBaseUrl,
+  });
   let baseUrl = baseInput.baseUrl;
   let apiKey = baseInput.apiKey;
 
-  const compatibilityChoice = await prompter.select({
-    message: "Endpoint compatibility",
-    options: COMPATIBILITY_OPTIONS.map((option) => ({
-      value: option.value,
-      label: option.label,
-      hint: option.hint,
-    })),
-  });
+  const compatibilityChoice = params.skipCompatibilityPrompt
+    ? (params.compatibilityChoice ?? "openai")
+    : await prompter.select({
+        message: "Endpoint compatibility",
+        options: COMPATIBILITY_OPTIONS.map((option) => ({
+          value: option.value,
+          label: option.label,
+          hint: option.hint,
+        })),
+      });
 
   let modelId = (
     await prompter.text({
       message: "Model ID",
       placeholder: "e.g. llama3, claude-3-7-sonnet",
+      initialValue: params.initialModelId,
       validate: (val) => (val.trim() ? undefined : "Model ID is required"),
     })
   ).trim();
@@ -615,7 +627,7 @@ export async function promptCustomApiConfig(params: {
   }
 
   const providers = config.models?.providers ?? {};
-  const suggestedId = buildEndpointIdFromUrl(baseUrl);
+  const suggestedId = params.initialProviderId ?? buildEndpointIdFromUrl(baseUrl);
   const providerIdInput = await prompter.text({
     message: "Endpoint ID",
     initialValue: suggestedId,
@@ -631,7 +643,7 @@ export async function promptCustomApiConfig(params: {
   const aliasInput = await prompter.text({
     message: "Model alias (optional)",
     placeholder: "e.g. local, ollama",
-    initialValue: "",
+    initialValue: params.initialAlias ?? "",
     validate: (value) => {
       const requestedId = normalizeEndpointId(providerIdInput) || "custom";
       const providerIdResult = resolveUniqueEndpointId({
