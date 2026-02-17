@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AuthProfileStore } from "../agents/auth-profiles.js";
-import { buildAuthChoiceOptions } from "./auth-choice-options.js";
+import { buildAuthChoiceGroups, buildAuthChoiceOptions } from "./auth-choice-options.js";
 
 describe("buildAuthChoiceOptions", () => {
   it("includes GitHub Copilot", () => {
@@ -133,5 +133,29 @@ describe("buildAuthChoiceOptions", () => {
     });
 
     expect(options.some((opt) => opt.value === "xai-api-key")).toBe(true);
+  });
+
+  it("includes local auth choices", () => {
+    const store: AuthProfileStore = { version: 1, profiles: {} };
+    const options = buildAuthChoiceOptions({
+      store,
+      includeSkip: false,
+    });
+
+    expect(options.some((opt) => opt.value === "ollama-local")).toBe(true);
+    expect(options.some((opt) => opt.value === "lm-studio-local")).toBe(true);
+  });
+
+  it("groups local choices under Local models", () => {
+    const store: AuthProfileStore = { version: 1, profiles: {} };
+    const grouped = buildAuthChoiceGroups({
+      store,
+      includeSkip: false,
+    });
+
+    const localGroup = grouped.groups.find((group) => group.value === "local");
+    expect(localGroup?.options.map((option) => option.value)).toEqual(
+      expect.arrayContaining(["ollama-local", "lm-studio-local"]),
+    );
   });
 });

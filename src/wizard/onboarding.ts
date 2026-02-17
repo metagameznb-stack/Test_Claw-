@@ -403,7 +403,12 @@ export async function runOnboardingWizard(
     nextConfig = authResult.config;
   }
 
-  if (authChoiceFromPrompt && authChoice !== "custom-api-key") {
+  if (
+    authChoiceFromPrompt &&
+    authChoice !== "custom-api-key" &&
+    authChoice !== "ollama-local" &&
+    authChoice !== "lm-studio-local"
+  ) {
     const modelSelection = await promptDefaultModel({
       config: nextConfig,
       prompter,
